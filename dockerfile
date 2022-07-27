@@ -3,8 +3,8 @@ env LANG=C.UTF-8 LC_ALL=C.UTF-8
 run apt-get update && apt-get upgrade -y && apt-get install -y python python3 python3-pip automake tmux redis wget autoconf sudo htop cmake clang vim unzip git binutils-arm-none-eabi gnuplot software-properties-common
 run sudo add-apt-repository ppa:pypy/ppa
 run apt-get update && apt-get upgrade -y && apt-get install -y pypy3 pypy3-dev
-#run pip3 install virtualenv virtualenvwrapper cython setuptools
-run pypy3 -m pip install --upgrade pip virtualenv virtualenvwrapper cython setuptools
+run pypy3 -m pip install virtualenv virtualenvwrapper cython setuptools PyYAML
+run pip3 install virtualenv virtualenvwrapper cython setuptools
 
 arg USER_ID
 arg GROUP_ID
@@ -21,9 +21,12 @@ copy modeling/requirements.txt /requirements-modeling.txt
 user user
 run pypy3 -m virtualenv --python=/usr/bin/pypy3 $WORKON_HOME/fuzzware-modeling
 run . $WORKON_HOME/fuzzware-modeling/bin/activate && pypy3 -m pip install -r /requirements-modeling.txt
+#run . $WORKON_HOME/fuzzware-modeling/bin/activate && python3 -m pip install -r /requirements-modeling.txt
 user root
-run pypy3 -m pip install -r /requirements-pipeline.txt
-run pypy3 -m pip install -r /requirements-emulator.txt
+#run pypy3 -m pip install -r /requirements-pipeline.txt
+run pip3 install -r /requirements-pipeline.txt
+#run pypy3 -m pip install -r /requirements-emulator.txt
+run pip3 install -r /requirements-emulator.txt
 
 run mkdir $FUZZWARE
 
@@ -32,16 +35,16 @@ copy --chown=user emulator $FUZZWARE/emulator
 workdir $FUZZWARE/emulator
 user user
 run ./get_afl.sh
-run UNICORN_QEMU_FLAGS="--python=/usr/bin/pypy3" make -C $FUZZWARE/emulator/afl clean all
+run UNICORN_QEMU_FLAGS="--python=/usr/bin/python3" make -C $FUZZWARE/emulator/afl clean all
 workdir $FUZZWARE/emulator/unicorn
 run ./build_unicorn.sh
 run make -C $FUZZWARE/emulator/harness/fuzzware_harness/native clean all
 user root
-run pypy3 -m pip install -e $FUZZWARE/emulator/harness
+run pip3 install -e $FUZZWARE/emulator/harness
 
 # 3. Pipeline
 copy --chown=user pipeline $FUZZWARE/pipeline
-run pypy3 -m pip install -e $FUZZWARE/pipeline
+run pip3 install -e $FUZZWARE/pipeline
 
 # 4. Modeling
 copy --chown=user modeling $FUZZWARE/modeling
