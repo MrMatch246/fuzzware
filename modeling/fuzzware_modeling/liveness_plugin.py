@@ -109,7 +109,25 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         This deals with the cleanup of stack frames and their references.
         """
-        l.warning("[%x] Returning from function", state.addr)
+
+        return_addrs = state.solver.eval_upto(state.regs.ip,300)
+        if len(return_addrs) != 1:
+            return_addr = return_addrs[1]
+            history=[i for i in state.history.actions]
+            history_log = ""
+            #history_log="\n".join([f'Addr:{i.addr} Size:{i.size} Data:{i.data} Cond:{i.condition}' for i in history])
+            for action in history:
+                if "SimActionData" in str(action):
+                    history_log += f'\nAction: {action.action} Addr:{action.addr} Size:{action.size} Data:{action.data} Cond:{action.condition}'
+                else:
+                    history_log += f'\n{action}'
+            raise Exception(f"Got more than one return address {len(return_addrs)} from state:\n {state}\n"
+                            f"ALL:\n{[hex(addr) for addr in state.history.bbl_addrs]}\nLAST:\n{[hex(addr) for addr in state.history.recent_bbl_addrs]}"
+                            f'\nActions taken:\n{history_log}')
+
+        else:
+            return_addr = return_addrs[0]
+        l.warning("[%x] Returning from function", return_addr)
 
         # In case we already returned from the top level function, don't deal with stack writes anymore
         if not self.stackframes:
@@ -125,7 +143,7 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         # For top level function return, also remove scratch registers from scope
         if not self.stackframes:
-            l.warning("[{:x}] Returned from top level function".format(state.addr))
+            l.warning("[{:x}] Returned from top level function".format(return_addr))
             self.returned = True
             self._remove_scratch_reg_refs()
             if NVIC_RET_START <= state.addr <= NVIC_RET_START | 0xfff:

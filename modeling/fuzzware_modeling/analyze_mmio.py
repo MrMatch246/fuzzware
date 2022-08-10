@@ -6,7 +6,7 @@ import traceback
 import angr
 import claripy
 import archinfo
-
+import multiprocessing as mp
 from .angr_utils import CUSTOM_STASH_NAMES, DEFAULT_TIMEOUT, insn_addr_from_SimIRSBNoDecodeError
 from .base_state_snapshot import BaseStateSnapshot
 from .fuzzware_utils.config import update_config_file, TRACE_NAME_TOKENS
@@ -19,7 +19,7 @@ from .arch_specific.arm_thumb_quirks import try_handling_decode_error
 from .logging_utils import set_log_levels
 
 l = logging.getLogger("ANA")
-
+MULTI = True
 """ Execution Strategy
 1. Run until no active anymore
 - Finished stepping:
@@ -73,7 +73,7 @@ def setup_analysis(statefile, cfg=None):
 
     # Load snapshot and pre-constrain state registers for tainting
     project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
-
+    #initial_state.options.add(angr.options.CGC_ZERO_FILL_UNCONSTRAINED_MEMORY)
     # Breakpoints: MMIO handling
     initial_state.globals['tmp_mmio_bp'] = initial_state.inspect.b('mem_read', when=angr.BP_BEFORE, action=inspect_bp_singleton_ensure_mmio)
     initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_mmio_intercept_read_after, condition=inspect_cond_is_mmio_read)
@@ -132,7 +132,7 @@ def wrapped_explore(simulation, **kwargs):
 
     return True
 
-def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT):
+def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT,queue=None):
     project, initial_state, base_snapshot = setup_analysis(statefile, cfg)
     start_pc = base_snapshot.initial_pc
 
@@ -209,7 +209,54 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
 
         result_line = "pc: 0x{:08x}, mmio: 0x{:08x}, is_passthrough: {}, is_constant: {}, bitmask: {:x}, set vals: {}\n".format(start_pc, mmio_addr, is_passthrough, is_constant, bitmask, set_vals)
 
-    return result_line, config_entry
+    if queue:
+        queue.put((result_line,config_entry))
+    else:
+        return result_line, config_entry
+
+
+
+
+
+def multi_proc_manager(function=None,arg_tuple_list=[]):
+    with mp.Pool() as p:
+        p.starmap(function, arg_tuple_list)
+
+def multi_perform_analyses(statefiles, cfg, is_debug=False, timeout=DEFAULT_TIMEOUT):
+    if is_debug:
+        set_log_levels(logging.DEBUG)
+        l.debug("debug logging enabled")
+    m = mp.Manager()
+    processed_queue = m.Queue()
+    job_args_multi = []
+    result_lines, config_entries = [], []
+    iterations = 0
+    num_processed = 0
+
+
+    for statefile in statefiles:
+        if any(tok in os.path.basename(statefile) for tok in TRACE_NAME_TOKENS):
+            l.warning(f"Skipping trace file {statefile}")
+            continue
+        job_args_multi.append((statefile, cfg, is_debug, timeout,processed_queue))
+        iterations+=1
+    p = mp.Process(target=multi_proc_manager, args=(perform_analysis, job_args_multi))
+    p.start()
+    while num_processed < iterations:
+        line,config = processed_queue.get(block=True)
+        num_processed += 1
+        result_lines.append(line)
+        config_entries.append(config)
+    p.join()
+
+
+
+
+
+
+
+
+    return result_lines, config_entries
 
 
 def analyze_mmio_and_store(statefiles, out_path, fuzzware_config_map=None, timeout=DEFAULT_TIMEOUT, is_debug=False):
