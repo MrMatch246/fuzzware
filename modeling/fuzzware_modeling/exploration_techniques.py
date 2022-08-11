@@ -106,6 +106,23 @@ class FirstStateSplitDetector(angr.exploration_techniques.ExplorationTechnique):
             self.has_forked_state = True
 
             msg = "\n=========== FirstStateSplitDetector ================\n"
+
+            if False:
+                history = [i for i in state.history.actions]
+                history_log = ""
+                # history_log="\n".join([f'Addr:{i.addr} Size:{i.size} Data:{i.data} Cond:{i.condition}' for i in history])
+                for action in history:
+                    if "SimActionData" in str(action):
+                        history_log += f'\nAction: {action.action} Addr:{action.addr} Size:{action.size} Data:{action.data} Cond:{action.condition}'
+                    else:
+                        history_log += f'\n{action}'
+                raise Exception(
+                                f"ALL:\n{[hex(addr) for addr in state.history.bbl_addrs]}\nLAST:\n{[hex(addr) for addr in state.history.recent_bbl_addrs]}"
+                                f'\nActions taken:\n{history_log}')
+
+
+
+
             msg += str(successors) + "\n"
             for successor_state in successors.successors:
                 msg += str(successor_state) + "\n"

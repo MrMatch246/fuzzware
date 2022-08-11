@@ -152,6 +152,7 @@ class BaseStateSnapshot:
         # We need the following option in order for CBZ to not screw us over
         project.factory.default_engine.default_strict_block_end = True
 
+        #initial_state = project.factory.blank_state(addr=regs[REG_NAME_PC]|1 , add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY})
         initial_state = project.factory.blank_state(addr=regs[REG_NAME_PC]|1)
 
         arm_thumb_quirks.add_special_initstate_reg_vals(initial_state, regs)
