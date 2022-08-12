@@ -65,9 +65,9 @@ class LivenessPlugin(angr.SimStatePlugin):
 
     def _remove_ref(self, varname):
         self.alive_varname_counts[varname] -= 1
-        l.warning("[%x] Decreasing alive var ref: %r, #refs now: %d", self.state.addr, varname, self.alive_varname_counts[varname])
+        l.debug("[%x] Decreasing alive var ref: %r, #refs now: %d", self.state.addr, varname, self.alive_varname_counts[varname])
         if self.alive_varname_counts[varname] == 0:
-            l.warning("Removing %r from mmio alive list", varname)
+            l.debug("Removing %r from mmio alive list", varname)
             self.alive_varname_counts.pop(varname)
 
             if not self.alive_varname_counts:
@@ -84,7 +84,7 @@ class LivenessPlugin(angr.SimStatePlugin):
 
     def _add_ref(self, varname):
         self.alive_varname_counts[varname] += 1
-        l.warning("[%x] Increasing alive var ref: %r, #refs now: %d", self.state.addr, varname, self.alive_varname_counts[varname])
+        l.debug("[%x] Increasing alive var ref: %r, #refs now: %d", self.state.addr, varname, self.alive_varname_counts[varname])
 
     def _remove_scratch_reg_refs(self):
         for reg in [self.state.regs.r1, self.state.regs.r2, self.state.regs.r3, self.state.regs.lr]:
@@ -127,7 +127,7 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         else:
             return_addr = return_addrs[0]
-        l.warning("[%x] Returning from function", return_addr)
+        l.debug("[%x] Returning from function", return_addr)
 
         # In case we already returned from the top level function, don't deal with stack writes anymore
         if not self.stackframes:
@@ -143,11 +143,11 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         # For top level function return, also remove scratch registers from scope
         if not self.stackframes:
-            l.warning("[{:x}] Returned from top level function".format(return_addr))
+            l.debug("[{:x}] Returned from top level function".format(return_addr))
             self.returned = True
             self._remove_scratch_reg_refs()
             if NVIC_RET_START <= state.addr <= NVIC_RET_START | 0xfff:
-                l.critical("returning from ISR")
+                l.debug("returning from ISR")
 
     def on_before_reg_write(self, write_expr, reg_write_offset, write_len):
         """
@@ -229,7 +229,7 @@ class LivenessPlugin(angr.SimStatePlugin):
         new_var = claripy.BVS('mmio_{:08x}'.format(addr), 8* read_len)
 
         if not self.returned and addr == self.base_snapshot.mmio_addr and self.state.addr == self.base_snapshot.access_pc:
-            l.warning(f"Adding mmio variable {new_var} {new_var._encoded_name}")
+            l.info(f"Adding mmio variable {new_var} {new_var._encoded_name}")
             self.alive_varname_counts[new_var._encoded_name.decode()] = 0
             self.tracked_vars.append(new_var)
 

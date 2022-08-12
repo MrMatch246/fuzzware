@@ -22,11 +22,11 @@ def inspect_after_address_concretization(state):
     if state.inspect.address_concretization_result is None:
         try:
             concretized_expr = state.liveness.base_snapshot.concretize(state.inspect.address_concretization_expr)
-            l.warn(f"[inspect_address_concretization AFTER] address expression '{state.inspect.address_concretization_expr}' concretized to None at pc: {state.addr:08x}, trying to intervene.\n Concretized to '{concretized_expr}'")
+            l.info(f"[inspect_address_concretization AFTER] address expression '{state.inspect.address_concretization_expr}' concretized to None at pc: {state.addr:08x}, trying to intervene.\n Concretized to '{concretized_expr}'")
             state.inspect.address_concretization_result = [state.solver.eval_one(concretized_expr)]
-            l.warn(f"[inspect_address_concretization AFTER] Successfully overwrote to {state.inspect.address_concretization_result[0]:08x}")
+            l.info(f"[inspect_address_concretization AFTER] Successfully overwrote to {state.inspect.address_concretization_result[0]:08x}")
         except Exception as e:
-            l.warn(f"[inspect_address_concretization AFTER] Failed to concretize address. Error: {e}.\n bailing out")
+            l.warning(f"[inspect_address_concretization AFTER] Failed to concretize address. Error: {e}.\n bailing out")
             state.inspect.address_concretization_result = None
 
 def inspect_bp_track_newly_added_constraints(state):
@@ -82,7 +82,7 @@ def inspect_bp_trace_liveness_reg(state):
 def inspect_bp_trace_liveness_mem(state):
     addr = state.solver.eval(state.inspect.mem_write_address)
     if addr == state.liveness.base_snapshot.mmio_addr and len(state.liveness.tracked_vars) == 1 and contains_var(state.inspect.mem_write_expr, state.liveness.tracked_vars[0]):
-        l.warning(f"config_write_performed set for state: {state}, written expression: {state.inspect.mem_write_expr}, first tracked variable: {state.liveness.tracked_vars[0]}")
+        l.info(f"config_write_performed set for state: {state}, written expression: {state.inspect.mem_write_expr}, first tracked variable: {state.liveness.tracked_vars[0]}")
         # We have a write to the mmio address which we originally read from: keep this as a note for config model detection
         state.globals['config_write_performed'] = True
         # The tracked address also is an MMIO address, not relevant for liveness tracking

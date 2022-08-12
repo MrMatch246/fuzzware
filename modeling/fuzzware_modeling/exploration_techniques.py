@@ -31,9 +31,9 @@ class MMIOVarScoper(angr.exploration_techniques.ExplorationTechnique):
                 state.globals['path_constrained'] = False
             elif not state.globals['path_constrained']:
                 found = True
-                l.warning("State (pc={:x}) MMIO variables all went out of scope and no path constraint: {}".format(state.addr, state))
+                l.debug("State (pc={:x}) MMIO variables all went out of scope and no path constraint: {}".format(state.addr, state))
             else:
-                l.warning("State (pc={:x}) MMIO variables all went out of scope but path is constrained: {}".format(state.addr, state))
+                l.debug("State (pc={:x}) MMIO variables all went out of scope but path is constrained: {}".format(state.addr, state))
                 return 'vars_dead_but_path_constrained'
 
         if found:
@@ -52,13 +52,13 @@ class FunctionReturner(angr.exploration_techniques.ExplorationTechnique):
         if state.liveness.returned:
             l.critical("State (pc={:x}) returned from initial function: {}. retval: {}".format(state.addr, state, return_reg(state)))
             if state_returns_val(state):
-                l.warning("Function returns val, putting into 'returning_val' stash")
+                l.debug("Function returns val, putting into 'returning_val' stash")
                 return 'returning_val'
             else:
                 return 'found'
 
         elif state.liveness.call_depth > MAX_CALL_DEPTH:
-            l.warning("State {} got deep call stack ({}), shifting to alternative stash".format(state, state.liveness.call_depth))
+            l.debug("State {} got deep call stack ({}), shifting to alternative stash".format(state, state.liveness.call_depth))
             self.has_deep_call = True
             return 'deep_calls'
         else:
@@ -72,7 +72,7 @@ class FunctionReturner(angr.exploration_techniques.ExplorationTechnique):
                 for var in successor_state.liveness.tracked_vars:
                     # TODO: Convert this to successor_state.history.jump_guards instead as soon as a jump guard shows up for all (including CBZ) instructions
                     if any([contains_var(guard, var) for guard in successor_state.solver.constraints]):
-                        l.warning("State is now constrained: {}".format(successor_state))
+                        l.debug("State is now constrained: {}".format(successor_state))
                         successor_state.globals['path_constrained'] = True
                         break
 
@@ -81,7 +81,7 @@ class FunctionReturner(angr.exploration_techniques.ExplorationTechnique):
     def complete(self, simgr):
         if self.has_deep_call:
             self.has_deep_call = False
-            l.warning("State is deep in call stack, completing simulation")
+            l.info("State is deep in call stack, completing simulation")
             return True
         return False
 
@@ -161,7 +161,7 @@ class StateExplosionDetector(angr.exploration_techniques.ExplorationTechnique):
 
     def complete(self, simgr):
         if len(simgr.deferred) > MAX_ACTIVE_STATES:
-            l.warn("[StateExplosionDetector] Too many parallel states in 'deferred'. Stop stepping")
+            l.warning("[StateExplosionDetector] Too many parallel states in 'deferred'. Stop stepping")
             self.is_exploded = True
             return True
         return False
@@ -183,9 +183,9 @@ class LoopEscaper(angr.exploration_techniques.ExplorationTechnique):
             # While we are at too many iterations, see whether there is no state explosion happening, then go on for longer
             # For states that exhibit meaningful behavior while being constrained, we cut down on the extended number of loop times
             if state.history.jump_guard is claripy.true and (num_visits < (NON_FORKING_STATE_MAX_BB_VISITS if (not state.globals['meaningful_actions_while_constrained']) and state.liveness.call_depth == 0 else NON_FORKING_STATE_MAX_BB_VISITS//5)):
-                l.info("Stepping through loop at 0x{:08x} an additional time ({}) because no additional states are created".format(state.addr, num_visits))
+                l.debug("Stepping through loop at 0x{:08x} an additional time ({}) because no additional states are created".format(state.addr, num_visits))
             else:
-                l.critical("State (pc={:x}) exceeded max back edge visits: {}".format(state.addr, state))
+                l.info("State (pc={:x}) exceeded max back edge visits: {}".format(state.addr, state))
 
                 # Put at least one state into the stash to let the analysis know about it
                 if (not simgr.loops) or self.debug:
@@ -193,7 +193,7 @@ class LoopEscaper(angr.exploration_techniques.ExplorationTechnique):
                 else:
                     return '_DROP'
         elif state.globals['dead_too_many_out_of_scope']:    
-            l.critical("State (pc={:x}) too many MMIO variables went out of scope: {}".format(state.addr, state))
+            l.info("State (pc={:x}) too many MMIO variables went out of scope: {}".format(state.addr, state))
 
             # Put at least one state into the stash to let the analysis know about it
             if (not simgr.too_many_out_of_scope) or self.debug:
