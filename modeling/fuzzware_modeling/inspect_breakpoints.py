@@ -80,7 +80,23 @@ def inspect_bp_trace_liveness_reg(state):
     state.liveness.on_before_reg_write(state.inspect.reg_write_expr, state.inspect.reg_write_offset, state.inspect.reg_write_length)
 
 def inspect_bp_trace_liveness_mem(state):
-    addr = state.solver.eval(state.inspect.mem_write_address)
+    try:
+        addr = state.solver.eval_one(state.inspect.mem_write_address)
+
+    except Exception as e:
+        write_addrs = state.solver.eval_upto(state.inspect.mem_write_address, 300)
+        history = [i for i in state.history.actions]
+        history_log = ""
+        # history_log="\n".join([f'Addr:{i.addr} Size:{i.size} Data:{i.data} Cond:{i.condition}' for i in history])
+        for action in history:
+            if "SimActionData" in str(action):
+                history_log += f'\nAction: {action.action} Addr:{action.addr} Size:{action.size} Data:{action.data} Cond:{action.condition}'
+            else:
+                history_log += f'\n{action}'
+        raise Exception(f"Got more than one MEM_WRITE_ADDR {len(write_addrs)} from state:\n {state}\n"
+                        f"ALL:\n{[hex(addr) for addr in state.history.bbl_addrs]}\nLAST:\n{[hex(addr) for addr in state.history.recent_bbl_addrs]}"
+                        f'\nActions taken:\n{history_log}')
+
     if addr == state.liveness.base_snapshot.mmio_addr and len(state.liveness.tracked_vars) == 1 and contains_var(state.inspect.mem_write_expr, state.liveness.tracked_vars[0]):
         l.info(f"config_write_performed set for state: {state}, written expression: {state.inspect.mem_write_expr}, first tracked variable: {state.liveness.tracked_vars[0]}")
         # We have a write to the mmio address which we originally read from: keep this as a note for config model detection
@@ -104,7 +120,8 @@ def inspect_bp_trace_liveness_mem(state):
         for ast in state.liveness.tracked_vars:
             if ast._encoded_name in value_variable_names:
                 # We are writing an MMIO input to the environment. Bail out
-                l.warning("[{:x}] MMIO value {} written out to the environment ([{:x}]={})".format(state.addr, ast, addr, state.inspect.mem_write_expr))
+                l.warning(f"Writing MMIO input to ENV @ {state.inspect.mem_write_address} at PC {state.addr} ")
+                #l.warning("[{:x}] MMIO value {} written out to the environment ([{:x}]={})".format(state.addr, ast, addr, state.inspect.mem_write_expr))
                 state.globals['dead_write_to_env'] = True
 
 def inspect_cond_is_mmio_read(state):
