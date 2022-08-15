@@ -77,6 +77,11 @@ def setup_analysis(statefile, cfg=None):
 
     # Load snapshot and pre-constrain state registers for tainting
     project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
+    if False:
+        l.critical(f'MEMORY CHECKER BEFORE @ 0x200400 : {initial_state.solver.eval(initial_state.memory.load(0x0200400,8,disable_actions=True, inspect=False))}')
+
+
+
     #initial_state.options.add(angr.options.CGC_ZERO_FILL_UNCONSTRAINED_MEMORY)
     # Breakpoints: MMIO handling
     initial_state.globals['tmp_mmio_bp'] = initial_state.inspect.b('mem_read', when=angr.BP_BEFORE, action=inspect_bp_singleton_ensure_mmio)
@@ -146,6 +151,11 @@ def timeout_handler(signal_no, stack_frame):
 def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT,queue=None):
     project, initial_state, base_snapshot = setup_analysis(statefile, cfg)
     start_pc = base_snapshot.initial_pc
+    if True:
+        l.critical(
+            f'MEMORY CHECKER MIDDEL @ 0x200400 : {initial_state.solver.eval(initial_state.memory.load(0x0200400, 8,disable_actions=True, inspect=False))}')
+
+
 
     if is_debug:
         initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_trace_reads)
@@ -157,6 +167,8 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
         simulation.populate(stash_name, [])
 
     # Simulation techniques
+    #simulation.use_technique(angr.exploration_techniques.veritesting.Veritesting())
+
     simulation.use_technique(angr.exploration_techniques.DFS())
     timeout_detector_technique = simulation.use_technique(TimeoutDetector(EXPLORATION_TIMEOUT_FACTOR * timeout))
     state_explosion_detector_technique = simulation.use_technique(StateExplosionDetector())
@@ -164,6 +176,12 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
     simulation.use_technique(FunctionReturner())
     simulation.use_technique(MMIOVarScoper())
     simulation.use_technique(LoopEscaper(debug=is_debug))
+
+    simulation.use_technique(angr.exploration_techniques.MemoryWatcher(10000))
+    # Testing if memory from text section is actually there
+    if True:
+        l.critical(
+            f'MEMORY CHECKER AFTER @ 0x200400 : {initial_state.solver.eval(initial_state.memory.load(0x0200400, 8,disable_actions=True, inspect=False))}')
 
     # Set Hard timeout
     signal.signal(signal.SIGALRM, timeout_handler)
