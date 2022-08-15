@@ -155,6 +155,11 @@ class BaseStateSnapshot:
         #initial_state = project.factory.blank_state(addr=regs[REG_NAME_PC]|1 , add_options={angr.options.ZERO_FILL_UNCONSTRAINED_MEMORY})
         initial_state = project.factory.blank_state(addr=regs[REG_NAME_PC]|1)
 
+        if True:
+            l.critical(
+                f'MEMORY CHECKER BEFORE @ 0x200400 : {initial_state.solver.eval(initial_state.memory.load(0x0200400, 8,disable_actions=True, inspect=False))}')
+
+
         arm_thumb_quirks.add_special_initstate_reg_vals(initial_state, regs)
 
         # apply registers to state
