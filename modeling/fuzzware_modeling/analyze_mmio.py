@@ -63,11 +63,19 @@ def perform_analyses(statefiles, cfg, is_debug=False, timeout=DEFAULT_TIMEOUT):
         l.debug("debug logging enabled")
 
     result_lines, config_entries = [], []
+    is_worker = True if len(statefiles) == 1 else False
+    if not is_worker:
+        if "FOLDER" in statefiles[1]:
+            path_=statefiles[0]
+            statefiles = [f"{path_}{f}" for f in os.listdir(path_)
+                 if "mmio_access_state" in f]
+            if True:
+                return multi_perform_analyses(statefiles, cfg, is_debug=is_debug, timeout=timeout)
     for statefile in statefiles:
         if any(tok in os.path.basename(statefile) for tok in TRACE_NAME_TOKENS):
             l.warning(f"Skipping trace file {statefile}")
             continue
-        line, config = perform_analysis(statefile, cfg=cfg, is_debug=is_debug, timeout=timeout)
+        line, config = perform_analysis(statefile, cfg=cfg, is_debug=is_debug, timeout=timeout, is_worker=is_worker)
         result_lines.append(line), config_entries.append(config)
     return result_lines, config_entries
 
@@ -148,7 +156,7 @@ def timeout_handler(signal_no, stack_frame):
     raise TimeoutError()
 
 
-def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT,queue=None):
+def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT,queue=None,is_worker=True):
     project, initial_state, base_snapshot = setup_analysis(statefile, cfg)
     start_pc = base_snapshot.initial_pc
     if True:
@@ -176,6 +184,10 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
     simulation.use_technique(FunctionReturner())
     simulation.use_technique(MMIOVarScoper())
     simulation.use_technique(LoopEscaper(debug=is_debug))
+    if not is_worker:
+        pass
+
+
 
     simulation.use_technique(angr.exploration_techniques.MemoryWatcher(10000))
     # Testing if memory from text section is actually there
@@ -253,7 +265,7 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
 
 
 def multi_proc_manager(function=None,arg_tuple_list=[]):
-    with mp.Pool() as p:
+    with mp.Pool(int(os.cpu_count()/4)) as p:
         p.starmap(function, arg_tuple_list)
 
 def multi_perform_analyses(statefiles, cfg, is_debug=False, timeout=DEFAULT_TIMEOUT):
