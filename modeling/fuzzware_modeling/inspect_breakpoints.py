@@ -139,6 +139,11 @@ def inspect_bp_mmio_intercept_read_after(state):
 
 def inspect_bp_singleton_ensure_mmio(state):
     read_addr = state.solver.eval(state.inspect.mem_read_address)
+    read_pc = state.addr
+
+    if read_pc | 1 != state.liveness.base_snapshot.initial_pc | 1:
+        raise Exception("First MMIO access not performed on first instruction. This is likely due to an unsupported instruction.")
+
     if not is_mmio_address(state, read_addr):
         start = read_addr & (~0xfff)
         l.warning("Adding non-configured MMIO page at: 0x{:08x}".format(start))
@@ -153,8 +158,8 @@ def inspect_bp_singleton_ensure_mmio(state):
 
 def inspect_bp_trace_reads(state):
     is_mmio_access = is_ast_mmio_address(state, state.inspect.mem_read_address)
-    print('Read', state.inspect.mem_read_expr, 'at', state.inspect.mem_read_address, "from ", hex(state.addr),  "is mmio read? ->", is_mmio_access)
+    print('Read', state.inspect.mem_read_expr, 'at', state.inspect.mem_read_address, "from ", hex(state.addr),  "is mmio read? ->", is_mmio_access, state.inspect.mem_read_expr)
 
 def inspect_bp_trace_writes(state):
     is_mmio_access = is_ast_mmio_address(state, state.inspect.mem_write_address)
-    print('Write', state.inspect.mem_write_expr, 'to', state.inspect.mem_write_address, "from ", hex(state.addr),  "is mmio write? ->", is_mmio_access)
+    print('Write', state.inspect.mem_write_expr, 'to', state.inspect.mem_write_address, "from ", hex(state.addr),  "is mmio write? ->", is_mmio_access, state.inspect.mem_write_expr)

@@ -1,6 +1,6 @@
 from ubuntu:18.04
 env LANG=C.UTF-8 LC_ALL=C.UTF-8
-run apt-get update && apt-get upgrade -y && apt-get install -y python python3 python3-pip automake tmux redis wget autoconf sudo htop cmake clang vim unzip git binutils-arm-none-eabi gnuplot software-properties-common
+run apt-get update && apt-get upgrade -y && apt-get install -y python python3 python3-pip automake tmux redis wget autoconf sudo htop cmake clang vim unzip git binutils-arm-none-eabi gnuplot software-properties-common llvm
 run sudo add-apt-repository ppa:pypy/ppa
 run apt-get update && apt-get upgrade -y && apt-get install -y pypy3 pypy3-dev
 run pypy3 -m pip install virtualenv virtualenvwrapper cython setuptools PyYAML
@@ -36,6 +36,8 @@ workdir $FUZZWARE/emulator
 user user
 run ./get_afl.sh
 run UNICORN_QEMU_FLAGS="--python=/usr/bin/python3" make -C $FUZZWARE/emulator/afl clean all
+run make -C $FUZZWARE/emulator/AFLplusplus clean all
+
 workdir $FUZZWARE/emulator/unicorn
 run ./build_unicorn.sh
 run make -C $FUZZWARE/emulator/harness/fuzzware_harness/native clean all
